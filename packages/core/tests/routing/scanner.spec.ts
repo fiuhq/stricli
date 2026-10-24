@@ -1286,5 +1286,19 @@ describe("RouteScanner", () => {
                 routeMap,
             });
         });
+
+        it("reports unprocessed value as unknown route when default declares no positional parameters", () => {
+            const routeMap = buildMapWithDefault(
+                buildCommand({
+                    loader: async () => ({ default: (flags: {}) => {} }),
+                    parameters: { flags: {} },
+                    docs: { brief: "default command brief" },
+                }),
+            );
+            confirmRouteScanError([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["arg"], {
+                input: "arg",
+                routeMap,
+            });
+        });
     });
 });
