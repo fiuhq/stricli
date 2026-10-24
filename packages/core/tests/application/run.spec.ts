@@ -596,12 +596,12 @@ describe("run", () => {
             expect(result).toMatchSnapshot();
         });
 
-        it("passes undefined route as argument to default command", async () => {
+        it("reports undefined route when the default command takes no arguments (fiuhq/stricli fork)", async () => {
             const result = await runWithInputs(app, ["undefined"]);
             expect(result).toMatchSnapshot();
         });
 
-        it("passes similar route as argument to default command", async () => {
+        it("reports similar route when the default command takes no arguments (fiuhq/stricli fork)", async () => {
             const result = await runWithInputs(app, ["commandx"]);
             expect(result).toMatchSnapshot();
         });
