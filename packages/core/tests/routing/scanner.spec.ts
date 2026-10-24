@@ -1,7 +1,14 @@
 // Copyright 2024 Bloomberg Finance L.P.
 // Distributed under the terms of the Apache 2.0 license.
 import { describe, expect, it } from "vitest";
-import { buildCommand, buildRouteMap, text_en, type CommandContext, type ScannerConfiguration } from "../../src";
+import {
+    buildCommand,
+    buildRouteMap,
+    text_en,
+    type Command,
+    type CommandContext,
+    type ScannerConfiguration,
+} from "../../src";
 // eslint-disable-next-line no-restricted-imports
 import {
     buildRouteScanner,
@@ -1144,17 +1151,16 @@ describe("RouteScanner", () => {
                 aliases: { original: [], "convert-camel-to-kebab": [] },
             });
         });
-        it("scans default command as target with unprocessed inputs (value)", () => {
-            confirmRouteScanResult([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["arg"], {
-                activeFlag: undefined,
-                target: defaultCommand,
-                prefix: ["cli"],
-                unprocessedInputs: ["arg"],
-                aliases: { original: ["default"], "convert-camel-to-kebab": ["default"] },
+        it("reports unprocessed value as unknown route when default command takes no positionals", () => {
+            confirmRouteScanError([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["arg"], {
+                input: "arg",
+                routeMap,
             });
         });
         it("scans default command as target with unprocessed inputs (flag)", () => {
-            confirmRouteScanResult([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["--flag"], {
+            const scanner = buildRouteScanner(routeMap, defaultScannerConfig, ["cli"], defaultFlags);
+            expect(scanner.next("--flag")).to.equal(undefined);
+            expect(scanner.finish()).to.deep.equal({
                 activeFlag: undefined,
                 target: defaultCommand,
                 prefix: ["cli"],
@@ -1180,13 +1186,10 @@ describe("RouteScanner", () => {
                 aliases: { original: [""], "convert-camel-to-kebab": [""] },
             });
         });
-        it("scans default command as target with input that is adjacent to the default rotue", () => {
-            confirmRouteScanResult([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["defaultx"], {
-                activeFlag: undefined,
-                target: defaultCommand,
-                prefix: ["cli"],
-                unprocessedInputs: ["defaultx"],
-                aliases: { original: ["default"], "convert-camel-to-kebab": ["default"] },
+        it("reports input adjacent to the default route as unknown route when default command takes no positionals", () => {
+            confirmRouteScanError([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["defaultx"], {
+                input: "defaultx",
+                routeMap,
             });
         });
         it("scans non-default command as target with exact route", () => {
@@ -1205,6 +1208,82 @@ describe("RouteScanner", () => {
                 prefix: ["cli", "alternate"],
                 unprocessedInputs: [],
                 aliases: { original: [], "convert-camel-to-kebab": [] },
+            });
+        });
+    });
+
+    describe("route map with default command that takes positionals", () => {
+        const positionalParameter = { brief: "", parse: String };
+        function buildMapWithDefault(defaultCommand: Command<CommandContext>) {
+            return buildRouteMap({
+                routes: {
+                    default: defaultCommand,
+                    alternate: buildCommand({
+                        loader: async () => ({ default: () => {} }),
+                        parameters: { positional: { kind: "tuple", parameters: [] }, flags: {} },
+                        docs: { brief: "alternate command brief" },
+                    }),
+                },
+                defaultCommand: "default",
+                docs: { brief: "route map brief" },
+            });
+        }
+
+        it.each([
+            [
+                "one-element tuple",
+                buildCommand({
+                    loader: async () => ({ default: (flags: {}, arg: string) => {} }),
+                    parameters: { positional: { kind: "tuple", parameters: [positionalParameter] }, flags: {} },
+                    docs: { brief: "default command brief" },
+                }),
+            ],
+            [
+                "unbounded array",
+                buildCommand({
+                    loader: async () => ({ default: (flags: {}, ...args: string[]) => {} }),
+                    parameters: { positional: { kind: "array", parameter: positionalParameter }, flags: {} },
+                    docs: { brief: "default command brief" },
+                }),
+            ],
+            [
+                "array with maximum 1",
+                buildCommand({
+                    loader: async () => ({ default: (flags: {}, ...args: string[]) => {} }),
+                    parameters: {
+                        positional: { kind: "array", parameter: positionalParameter, maximum: 1 },
+                        flags: {},
+                    },
+                    docs: { brief: "default command brief" },
+                }),
+            ],
+        ])("scans default command as target with unprocessed value (%s)", (_, defaultCommand) => {
+            const routeMap = buildMapWithDefault(defaultCommand);
+            const scanner = buildRouteScanner(routeMap, defaultScannerConfig, ["cli"], defaultFlags);
+            expect(scanner.next("arg")).to.equal(undefined);
+            expect(scanner.finish()).to.deep.equal({
+                activeFlag: undefined,
+                target: defaultCommand,
+                prefix: ["cli"],
+                unprocessedInputs: ["arg"],
+                aliases: { original: ["default"], "convert-camel-to-kebab": ["default"] },
+            });
+        });
+
+        it("reports unprocessed value as unknown route when default array has maximum 0", () => {
+            const routeMap = buildMapWithDefault(
+                buildCommand({
+                    loader: async () => ({ default: (flags: {}, ...args: string[]) => {} }),
+                    parameters: {
+                        positional: { kind: "array", parameter: positionalParameter, maximum: 0 },
+                        flags: {},
+                    },
+                    docs: { brief: "default command brief" },
+                }),
+            );
+            confirmRouteScanError([routeMap, defaultScannerConfig, ["cli"], defaultFlags], ["arg"], {
+                input: "arg",
+                routeMap,
             });
         });
     });
