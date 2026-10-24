@@ -1,12 +1,18 @@
 // Copyright 2024 Bloomberg Finance L.P.
 // Distributed under the terms of the Apache 2.0 license.
+//
+// MODIFIED in the fiuhq/stricli fork (Apache-2.0 §4(b)): an input that names no route falls
+// through to the route map's default command only when it is flag-shaped (leading `-`) or that
+// command accepts positional arguments. Upstream always falls through, so a bare word under a map
+// whose default takes none was refused as an unexpected argument to the default instead of as an
+// unregistered route. See `acceptsPositionalInput` and FORK.md at the repository root.
 import type { DisplayCaseStyle, ScannerConfiguration } from "../config";
 import type { CommandContext } from "../context";
 import type { AdditionalFlagDocumentation } from "../parameter/flag/formatting";
 import { findFlagsByArgument, resolveAliases } from "../parameter/scanner";
 import type { AvailableAlias } from "../parameter/types";
 import { convertKebabCaseToCamelCase } from "../util/case-style";
-import { CommandSymbol } from "./command/types";
+import { CommandSymbol, type Command } from "./command/types";
 import { RouteMapSymbol, type RouteMap } from "./route-map/types";
 import type { RoutingTarget } from "./types";
 
@@ -80,6 +86,24 @@ export interface RouteNotFoundError<CONTEXT extends CommandContext> {
 export interface RouteScanner<FLAG extends AdditionalFlag, CONTEXT extends CommandContext> {
     readonly next: (input: string) => RouteNotFoundError<CONTEXT> | undefined;
     readonly finish: () => InternalRouteScanResult<FLAG, CONTEXT>;
+}
+
+/**
+ * Whether a command can take a positional argument at all.
+ *
+ * fiuhq/stricli fork: a default command that takes none can only refuse a bare word as an unexpected
+ * argument, so the route scanner reports that word as an unregistered route instead of handing it over.
+ * Only a token with a leading `-` can parse as a flag, so any other token would be a positional.
+ */
+function acceptsPositionalInput<CONTEXT extends CommandContext>(command: Command<CONTEXT>): boolean {
+    const positional = command.parameters.positional;
+    if (!positional) {
+        return false;
+    }
+    if (positional.kind === "tuple") {
+        return positional.parameters.length > 0;
+    }
+    return positional.maximum === undefined || positional.maximum > 0;
 }
 
 /**
@@ -169,7 +193,7 @@ export function buildRouteScanner<FLAG extends AdditionalFlag, CONTEXT extends C
             if (!next) {
                 const defaultCommand = current.getDefaultCommand();
                 unprocessedInputs.push(input);
-                if (defaultCommand) {
+                if (defaultCommand && (input.startsWith("-") || acceptsPositionalInput(defaultCommand))) {
                     parent = [current, ""];
                     current = defaultCommand;
                     return;

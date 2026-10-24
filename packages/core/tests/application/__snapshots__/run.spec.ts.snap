@@ -1634,15 +1634,6 @@ basic command
 
 `;
 
-exports[`run > route map with default command at root > passes similar route as argument to default command 1`] = `
-ExitCode=InvalidArgument
-:: STDOUT
-
-:: STDERR
-[1m[31mToo many arguments, expected 0 but encountered "commandx"[39m[22m
-
-`;
-
 exports[`run > route map with default command at root > passes undefined flag to default command 1`] = `
 ExitCode=InvalidArgument
 :: STDOUT
@@ -1652,12 +1643,21 @@ ExitCode=InvalidArgument
 
 `;
 
-exports[`run > route map with default command at root > passes undefined route as argument to default command 1`] = `
-ExitCode=InvalidArgument
+exports[`run > route map with default command at root > reports similar route when the default command takes no arguments (fiuhq/stricli fork) 1`] = `
+ExitCode=UnknownCommand
 :: STDOUT
 
 :: STDERR
-[1m[31mToo many arguments, expected 0 but encountered "undefined"[39m[22m
+[1m[31mNo command registered for \`commandx\`[39m[22m
+
+`;
+
+exports[`run > route map with default command at root > reports undefined route when the default command takes no arguments (fiuhq/stricli fork) 1`] = `
+ExitCode=UnknownCommand
+:: STDOUT
+
+:: STDERR
+[1m[31mNo command registered for \`undefined\`[39m[22m
 
 `;
 
