@@ -1,5 +1,10 @@
 // Copyright 2024 Bloomberg Finance L.P.
 // Distributed under the terms of the Apache 2.0 license.
+//
+// MODIFIED in the fiuhq/stricli fork (Apache-2.0 §4(b)): `findInternalFlagMatch` annotates its
+// `flag` local as `F | undefined`. Upstream relies on `noUncheckedIndexedAccess` to widen the
+// indexed read, which fiu-cli's tsconfig does not enable; the annotation makes the source compile
+// identically under both settings. Behaviour is unchanged. See FORK.md at the repository root.
 import type { CompletionConfiguration, ScannerCaseStyle, ScannerConfiguration } from "../config";
 import type { CommandContext } from "../context";
 import type { RouteMap } from "../routing/route-map/types";
@@ -356,7 +361,7 @@ function findInternalFlagMatch<F>(
     config: ScannerConfiguration,
 ): NamedFlag<F> {
     const internalFlagName = externalFlagName as string as InternalFlagName;
-    let flag = flags[internalFlagName];
+    let flag: F | undefined = flags[internalFlagName];
     let foundFlagWithNegatedFalse: InternalFlagName | undefined;
     let foundFlagWithNegatedFalseFromKebabConversion = false;
     if (!flag) {
